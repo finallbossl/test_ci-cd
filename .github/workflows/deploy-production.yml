@@ -107,11 +107,44 @@ jobs:
           docker stop backend-api || true
           docker rm backend-api || true
 
+      - name: Ensure backend-network exists
+        run: |
+          docker network create backend-network 2>/dev/null || true
+
+      - name: Ensure SQL Server container is running
+        run: |
+          if ! docker ps --format '{{.Names}}' | grep -q '^sqlserver-db$'; then
+            echo "SQL Server container not running. Starting SQL Server..."
+            if docker ps -a --format '{{.Names}}' | grep -q '^sqlserver-db$'; then
+              docker start sqlserver-db
+            else
+              docker run -d \
+                --name sqlserver-db \
+                --restart unless-stopped \
+                --network backend-network \
+                --network-alias sqlserver \
+                -p 1433:1433 \
+                -e ACCEPT_EULA=Y \
+                -e MSSQL_SA_PASSWORD=YourStrong@Passw0rd \
+                -e MSSQL_PID=Express \
+                mcr.microsoft.com/mssql/server:2022-latest
+            fi
+            # Connect to network if not already connected
+            docker network connect backend-network sqlserver-db 2>/dev/null || true
+            echo "Waiting for SQL Server to be ready..."
+            sleep 15
+          else
+            echo "SQL Server container is already running"
+            # Ensure it's in the network
+            docker network connect backend-network sqlserver-db 2>/dev/null || true
+          fi
+
       - name: Run new container
         run: |
           docker run -d \
             --name backend-api \
             --restart unless-stopped \
+            --network backend-network \
             -p 8080:8080 \
             -e ASPNETCORE_ENVIRONMENT=Production \
             -e ConnectionStrings__DefaultConnection="${{ secrets.PRODUCTION_DB_CONNECTION }}" \

@@ -1,0 +1,32 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build outputs
+bin/
+obj/
+publish/
+
+# User files
+*.user
+*.suo
+*.userosscache
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+appsettings.Development.json
+
+# Documentation
+*.md
+

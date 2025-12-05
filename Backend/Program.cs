@@ -46,7 +46,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Ensure database is created
+// Ensure database is created (non-blocking)
 try
 {
     using var scope = app.Services.CreateScope();
@@ -54,13 +54,16 @@ try
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     
     logger.LogInformation("Checking database connection...");
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
     logger.LogInformation("Connection string: {ConnectionString}", 
-        builder.Configuration.GetConnectionString("DefaultConnection")?.Replace("Password=.*;", "Password=***;"));
+        connectionString?.Replace("Password=.*;", "Password=***;", System.Text.RegularExpressions.RegexOptions.IgnoreCase));
     
+    // Try to connect with timeout
     var canConnect = false;
     try
     {
-        canConnect = context.Database.CanConnect();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        canConnect = await context.Database.CanConnectAsync(cts.Token);
     }
     catch (Exception connectEx)
     {
@@ -72,14 +75,14 @@ try
         logger.LogInformation("Database does not exist. Creating database...");
         try
         {
-            context.Database.EnsureCreated();
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            await context.Database.EnsureCreatedAsync(cts.Token);
             logger.LogInformation("Database created successfully.");
         }
         catch (Exception createEx)
         {
             logger.LogError(createEx, "Failed to create database. Application will continue but database operations may fail.");
-            logger.LogError("Connection string: {ConnectionString}", 
-                builder.Configuration.GetConnectionString("DefaultConnection")?.Replace("Password=.*;", "Password=***;"));
+            logger.LogError("Full error: {Error}", createEx.ToString());
         }
     }
     else
@@ -90,10 +93,9 @@ try
 catch (Exception ex)
 {
     var logger = app.Services.GetRequiredService<ILogger<Program>>();
-    logger.LogError(ex, "An error occurred while connecting to the database. Please check your connection string and ensure SQL Server is running.");
-    logger.LogError("Connection string: {ConnectionString}", 
-        builder.Configuration.GetConnectionString("DefaultConnection")?.Replace("Password=.*;", "Password=***;"));
-    // Don't stop the application, but log the error
+    logger.LogError(ex, "An error occurred while connecting to the database. Application will continue but database operations may fail.");
+    logger.LogError("Full error: {Error}", ex.ToString());
+    // Don't stop the application
 }
 
 // Configure the HTTP request pipeline.

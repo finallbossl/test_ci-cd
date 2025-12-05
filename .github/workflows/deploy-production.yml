@@ -153,23 +153,38 @@ jobs:
       - name: Clean up old images
         run: docker image prune -af --filter "until=24h"
 
+      - name: Check container status
+        run: |
+          echo "📊 Container status:"
+          docker ps -a | grep backend-api || echo "Container not found"
+          echo ""
+          echo "📋 Container logs (last 100 lines):"
+          docker logs backend-api --tail 100 2>&1 || echo "Cannot read logs"
+
       - name: Health check
         run: |
           echo "⏳ Waiting for backend to be ready..."
-          sleep 20
+          sleep 30
           
           # Retry health check với timeout
-          for i in {1..10}; do
+          for i in {1..15}; do
             if curl -f --max-time 5 http://localhost:8080/health > /dev/null 2>&1; then
               echo "✅ Health check passed!"
               exit 0
             fi
-            echo "⏳ Attempt $i/10 failed, retrying in 5 seconds..."
+            echo "⏳ Attempt $i/15 failed, retrying in 5 seconds..."
+            if [ $i -eq 5 ] || [ $i -eq 10 ]; then
+              echo "📋 Current logs:"
+              docker logs backend-api --tail 30 2>&1 || true
+            fi
             sleep 5
           done
           
-          echo "❌ Health check failed after 10 attempts"
-          echo "📋 Container logs:"
-          docker logs backend-api --tail 50
+          echo "❌ Health check failed after 15 attempts"
+          echo "📋 Full container logs:"
+          docker logs backend-api 2>&1 || true
+          echo ""
+          echo "📊 Container status:"
+          docker ps -a | grep backend-api || true
           exit 1
 

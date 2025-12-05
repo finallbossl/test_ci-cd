@@ -155,6 +155,21 @@ jobs:
 
       - name: Health check
         run: |
-          sleep 10
-          curl -f http://localhost:8080/health || exit 1
+          echo "⏳ Waiting for backend to be ready..."
+          sleep 20
+          
+          # Retry health check với timeout
+          for i in {1..10}; do
+            if curl -f --max-time 5 http://localhost:8080/health > /dev/null 2>&1; then
+              echo "✅ Health check passed!"
+              exit 0
+            fi
+            echo "⏳ Attempt $i/10 failed, retrying in 5 seconds..."
+            sleep 5
+          done
+          
+          echo "❌ Health check failed after 10 attempts"
+          echo "📋 Container logs:"
+          docker logs backend-api --tail 50
+          exit 1
 

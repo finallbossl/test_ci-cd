@@ -6,13 +6,13 @@ echo "🔧 Connecting backend to SQL Server Express on host..."
 
 # Connection string cho SQL Server Express trên host
 # Lưu ý: Cần enable SQL Authentication và tạo user 'sa' với password
-# Server có thể là: host.docker.internal, 172.24.180.191, hoặc IP của host
-DB_CONNECTION="Server=host.docker.internal,1433;Database=DataTest;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;"
+# Dùng IP của host vì named instance không hoạt động từ Docker container
+DB_CONNECTION="Server=172.24.180.191,1433;Database=DataTest;User Id=sa;Password=MatKhau_Moi@123;TrustServerCertificate=True;"
 
-# Hoặc nếu biết IP chính xác:
-# DB_CONNECTION="Server=172.24.180.191,1433;Database=DataTest;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;"
+# Hoặc nếu SQL Server Express dùng port khác (dynamic port), kiểm tra port trong SQL Server Configuration Manager
+# DB_CONNECTION="Server=172.24.180.191,<PORT>;Database=DataTest;User Id=sa;Password=MatKhau_Moi@123;TrustServerCertificate=True;"
 
-echo "Using connection string: Server=host.docker.internal,1433"
+echo "Using connection string: Server=172.24.180.191,1433"
 
 # Kiểm tra backend container
 if ! docker ps --format '{{.Names}}' | grep -q '^backend-api$'; then

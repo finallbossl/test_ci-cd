@@ -42,3 +42,4 @@ docker network inspect backend-network --format '{{range .Containers}}{{.Name}} 
 echo ""
 echo "✨ Done! Check logs with: docker logs backend-api"
 
+

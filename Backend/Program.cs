@@ -1,6 +1,7 @@
 using Backend.Services;
 using Backend.Data;
 using Microsoft.EntityFrameworkCore;
+using System.Text.RegularExpressions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -54,9 +55,11 @@ try
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     
     logger.LogInformation("Checking database connection...");
-    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-    logger.LogInformation("Connection string: {ConnectionString}", 
-        connectionString?.Replace("Password=.*;", "Password=***;", System.Text.RegularExpressions.RegexOptions.IgnoreCase));
+    var connString = builder.Configuration.GetConnectionString("DefaultConnection");
+    var maskedConnectionString = connString != null 
+        ? Regex.Replace(connString, @"Password=[^;]+;", "Password=***;", RegexOptions.IgnoreCase)
+        : "Not configured";
+    logger.LogInformation("Connection string: {ConnectionString}", maskedConnectionString);
     
     // Try to connect with timeout
     var canConnect = false;

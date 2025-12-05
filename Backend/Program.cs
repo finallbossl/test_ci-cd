@@ -54,12 +54,33 @@ try
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     
     logger.LogInformation("Checking database connection...");
-    var canConnect = context.Database.CanConnect();
+    logger.LogInformation("Connection string: {ConnectionString}", 
+        builder.Configuration.GetConnectionString("DefaultConnection")?.Replace("Password=.*;", "Password=***;"));
+    
+    var canConnect = false;
+    try
+    {
+        canConnect = context.Database.CanConnect();
+    }
+    catch (Exception connectEx)
+    {
+        logger.LogWarning(connectEx, "Cannot connect to database. Will attempt to create it.");
+    }
+    
     if (!canConnect)
     {
         logger.LogInformation("Database does not exist. Creating database...");
-        context.Database.EnsureCreated();
-        logger.LogInformation("Database created successfully.");
+        try
+        {
+            context.Database.EnsureCreated();
+            logger.LogInformation("Database created successfully.");
+        }
+        catch (Exception createEx)
+        {
+            logger.LogError(createEx, "Failed to create database. Application will continue but database operations may fail.");
+            logger.LogError("Connection string: {ConnectionString}", 
+                builder.Configuration.GetConnectionString("DefaultConnection")?.Replace("Password=.*;", "Password=***;"));
+        }
     }
     else
     {
@@ -70,6 +91,8 @@ catch (Exception ex)
 {
     var logger = app.Services.GetRequiredService<ILogger<Program>>();
     logger.LogError(ex, "An error occurred while connecting to the database. Please check your connection string and ensure SQL Server is running.");
+    logger.LogError("Connection string: {ConnectionString}", 
+        builder.Configuration.GetConnectionString("DefaultConnection")?.Replace("Password=.*;", "Password=***;"));
     // Don't stop the application, but log the error
 }
 

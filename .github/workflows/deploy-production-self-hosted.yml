@@ -1,4 +1,4 @@
-name: Deploy to Production
+name: Deploy to Production (Self-Hosted)
 
 on:
   push:
@@ -85,7 +85,7 @@ jobs:
 
   deploy:
     name: Deploy to Production
-    runs-on: self-hosted  # Chạy trên self-hosted runner
+    runs-on: self-hosted  # Chạy trên server của bạn
     needs: build-and-push-docker
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     environment:

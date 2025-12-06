@@ -37,7 +37,11 @@ builder.Services.AddCors(options =>
                 "http://localhost:8080",
                 "http://172.24.180.191:8080", // Production frontend
                 "http://172.24.180.191:3000", // Production frontend (nếu dùng port khác)
-                "http://172.24.180.191:5173"  // Production frontend (nếu dùng port khác)
+                "http://172.24.180.191:5173",  // Production frontend (nếu dùng port khác)
+                "http://192.168.102.8:8080",   // Windows host IP
+                "http://192.168.102.8:3000",   // Windows host IP (nếu dùng port khác)
+                "http://192.168.102.8:5173",   // Windows host IP (nếu dùng port khác)
+                "http://172.24.176.1:8080"    // Network IP
               )
               .AllowAnyHeader()
               .AllowAnyMethod()

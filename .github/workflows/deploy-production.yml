@@ -147,7 +147,7 @@ jobs:
             --add-host=host.docker.internal:host-gateway \
             -p 8080:8080 \
             -e ASPNETCORE_ENVIRONMENT=Production \
-            -e ConnectionStrings__DefaultConnection="Server=172.24.180.191,14330;Database=DataTest;User Id=sa;Password=28122003;TrustServerCertificate=True;" \
+            -e ConnectionStrings__DefaultConnection="Server=host.docker.internal,14330;Database=DataTest;User Id=sa;Password=28122003;TrustServerCertificate=True;" \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
       - name: Clean up old images

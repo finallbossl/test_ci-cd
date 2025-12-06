@@ -8,7 +8,7 @@ set -e
 echo "🔧 Restarting backend with SQL Server 2025 on host..."
 
 # Connection string cho SQL Server 2025 trên host
-DB_CONNECTION="Server=172.24.180.191,14330;Database=DataTest;User Id=sa;Password=28122003;TrustServerCertificate=True;"
+DB_CONNECTION="Server=host.docker.internal,14330;Database=DataTest;User Id=sa;Password=28122003;TrustServerCertificate=True;"
 
 # Get image name
 IMAGE_NAME=$(docker images --format '{{.Repository}}:{{.Tag}}' | grep 'ghcr.io/finallbossl/test_ci-cd' | head -n1)

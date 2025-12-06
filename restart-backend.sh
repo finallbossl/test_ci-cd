@@ -37,7 +37,6 @@ echo "▶️  Starting backend container..."
 docker run -d \
   --name backend-api \
   --restart unless-stopped \
-  --add-host=host.docker.internal:host-gateway \
   -p 8080:8080 \
   -e ASPNETCORE_ENVIRONMENT=Production \
   -e ConnectionStrings__DefaultConnection="$DB_CONNECTION" \

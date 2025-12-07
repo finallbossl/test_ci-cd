@@ -133,23 +133,44 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # Render sẽ tự động deploy khi push code (nếu đã config auto-deploy)
-  # Job này chỉ để log và verify
-  notify-render:
-    name: Notify Render Deployment
+  # Trigger Render deployment via Deploy Hook
+  trigger-render-deploy:
+    name: Trigger Render Deployment
     runs-on: ubuntu-latest
     needs: build-and-push-docker
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     
     steps:
-      - name: Render Auto-Deploy Info
+      - name: Trigger Render Deploy Hook
+        run: |
+          echo "🚀 Triggering Render deployment..."
+          RESPONSE=$(curl -X POST "https://api.render.com/deploy/srv-d4qd2jre5dus73eljgt0?key=ibd9zEAJO4A" \
+            -H "Accept: application/json" \
+            -w "\nHTTP_CODE:%{http_code}" 2>/dev/null || echo "HTTP_CODE:000")
+          
+          HTTP_CODE=$(echo "$RESPONSE" | grep -o "HTTP_CODE:[0-9]*" | cut -d: -f2)
+          BODY=$(echo "$RESPONSE" | sed '/HTTP_CODE:/d')
+          
+          if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
+            echo "✅ Render deployment triggered successfully!"
+            echo "Response: $BODY"
+            DEPLOY_ID=$(echo "$BODY" | grep -o '"id":"[^"]*"' | cut -d'"' -f4 || echo "")
+            if [ -n "$DEPLOY_ID" ]; then
+              echo "📋 Deploy ID: $DEPLOY_ID"
+              echo "🔗 Check status: https://dashboard.render.com"
+            fi
+          else
+            echo "⚠️  Render deploy hook returned HTTP $HTTP_CODE"
+            echo "Response: $BODY"
+            echo "ℹ️  Render may auto-deploy from Git push instead"
+          fi
+      
+      - name: Deployment Info
         run: |
           echo "✅ Docker image built and pushed to GHCR"
           echo "📦 Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
           echo ""
-          echo "🚀 Render sẽ tự động detect code changes và redeploy"
-          echo "   (Nếu đã bật auto-deploy trong Render dashboard)"
-          echo ""
-          echo "📋 Kiểm tra deploy status tại:"
+          echo "🚀 Render deployment triggered via Deploy Hook"
+          echo "📋 Check deployment status:"
           echo "   https://dashboard.render.com"
 

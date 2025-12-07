@@ -3,8 +3,9 @@ services:
   - type: web
     name: backend-api
     env: docker
-    dockerfilePath: ./Backend/Backend/Dockerfile
-    dockerContext: ./Backend/Backend
+    # Try nested path first, fallback to Backend path
+    dockerfilePath: ./Backend/Dockerfile
+    dockerContext: ./Backend
     plan: free  # Free tier (sẽ sleep sau 15 phút không dùng)
     # plan: starter  # $7/tháng (không sleep)
     envVars:

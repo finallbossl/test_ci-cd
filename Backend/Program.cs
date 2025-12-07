@@ -1,7 +1,9 @@
 using Backend.Services;
 using Backend.Data;
+using Backend.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Text.RegularExpressions;
+using TaskModel = Backend.Models.Task;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -174,7 +176,14 @@ try
             {
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
                 await context.Database.EnsureCreatedAsync(cts.Token);
-        logger.LogInformation("Database created successfully.");
+                logger.LogInformation("Database created successfully.");
+                
+                // Verify tables were created
+                var tablesCreated = await context.Database.CanConnectAsync();
+                if (tablesCreated)
+                {
+                    logger.LogInformation("Database and tables verified successfully.");
+                }
             }
             catch (Exception createEx)
             {
@@ -185,6 +194,36 @@ try
     else
     {
         logger.LogInformation("Database connection successful.");
+        
+        // Check if tables exist, if not create them
+        try
+        {
+            // Try to query Tasks table to see if it exists
+            try
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                var testQuery = await context.Set<TaskModel>().Take(1).ToListAsync(cts.Token);
+                logger.LogInformation("Tasks table exists and is accessible.");
+            }
+            catch (Exception tableEx)
+            {
+                logger.LogWarning(tableEx, "Tasks table may not exist. Attempting to create tables...");
+                try
+                {
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                    await context.Database.EnsureCreatedAsync(cts.Token);
+                    logger.LogInformation("Tables created successfully.");
+                }
+                catch (Exception ensureEx)
+                {
+                    logger.LogError(ensureEx, "Failed to create tables. Error: {Error}", ensureEx.Message);
+                }
+            }
+        }
+        catch (Exception checkEx)
+        {
+            logger.LogWarning(checkEx, "Could not verify table existence. Will attempt to create if needed.");
+        }
     }
 }
 catch (Exception ex)

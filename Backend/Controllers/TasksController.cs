@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Backend.Models;
 using Backend.DTOs;
 using Backend.Services;
@@ -12,11 +13,13 @@ public class TasksController : ControllerBase
 {
     private readonly ITaskService _taskService;
     private readonly ILogger<TasksController> _logger;
+    private readonly IConfiguration _configuration;
 
-    public TasksController(ITaskService taskService, ILogger<TasksController> logger)
+    public TasksController(ITaskService taskService, ILogger<TasksController> logger, IConfiguration configuration)
     {
         _taskService = taskService;
         _logger = logger;
+        _configuration = configuration;
     }
 
     // GET: api/tasks
@@ -30,7 +33,19 @@ public class TasksController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting tasks");
+            _logger.LogError(ex, "Error getting tasks: {Error}", ex.Message);
+            _logger.LogError(ex, "Stack trace: {StackTrace}", ex.StackTrace);
+            
+            // Return more detailed error in development
+            if (_configuration["ASPNETCORE_ENVIRONMENT"] == "Development")
+            {
+                return StatusCode(500, new { 
+                    message = "An error occurred while retrieving tasks",
+                    error = ex.Message,
+                    stackTrace = ex.StackTrace
+                });
+            }
+            
             return StatusCode(500, new { message = "An error occurred while retrieving tasks" });
         }
     }

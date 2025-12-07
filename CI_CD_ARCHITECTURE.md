@@ -131,14 +131,23 @@ jobs:
     - Tag với version
 ```
 
-#### Bước 3: Render Auto-Deploy ✅
+#### Bước 3: Trigger Render Deploy Hook ✅
+```yaml
+- name: Trigger Render Deploy Hook
+  run: |
+    curl -X POST "https://api.render.com/deploy/srv-xxx?key=xxx"
 ```
-Render detects code changes
+
+#### Bước 4: Render Auto-Deploy ✅
+```
+Render nhận Deploy Hook
   → Pull latest code from GitHub
-  → Rebuild application
+  → Rebuild application (Docker)
   → Restart services
   → Health check
 ```
+
+**✅ Tất cả đều tự động - Không cần manual deploy!**
 
 ---
 

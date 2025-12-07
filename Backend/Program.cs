@@ -169,86 +169,42 @@ try
             logger.LogWarning(connectEx, "Cannot connect to database. Will attempt to create it.");
         }
         
-    if (!canConnect)
+    // Apply pending migrations automatically
+    try
     {
-        logger.LogInformation("Database does not exist. Creating database and tables...");
-            try
-            {
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-                await context.Database.EnsureCreatedAsync(cts.Token);
-                logger.LogInformation("Database created successfully.");
-                
-                // Verify tables were created
-                var tablesCreated = await context.Database.CanConnectAsync();
-                if (tablesCreated)
-                {
-                    logger.LogInformation("Database and tables verified successfully.");
-                }
-            }
-            catch (Exception createEx)
-            {
-                logger.LogError(createEx, "Failed to create database. Application will continue but database operations may fail.");
-                logger.LogError("Full error: {Error}", createEx.ToString());
-            }
-    }
-    else
-    {
-        logger.LogInformation("Database connection successful.");
+        logger.LogInformation("Applying database migrations...");
+        using var migrateCts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        await context.Database.MigrateAsync(migrateCts.Token);
+        logger.LogInformation("Database migrations applied successfully.");
         
-        // Check if tables exist, if not create them
+        // Verify tables exist after migration
         try
         {
-            // Try to query tasks table to see if it exists
-            try
-            {
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                var testQuery = await context.Set<TaskModel>().Take(1).ToListAsync(cts.Token);
-                logger.LogInformation("Tasks table exists and is accessible.");
-            }
-            catch (Exception tableEx)
-            {
-                logger.LogWarning(tableEx, "Tasks table does not exist. Attempting to create tables using EnsureCreated...");
-                try
-                {
-                    // Drop existing __EFMigrationsHistory table if exists (to allow EnsureCreated to work)
-                    try
-                    {
-                        await context.Database.ExecuteSqlRawAsync("DROP TABLE IF EXISTS \"__EFMigrationsHistory\" CASCADE;");
-                        logger.LogInformation("Dropped __EFMigrationsHistory table to allow EnsureCreated.");
-                    }
-                    catch (Exception dropEx)
-                    {
-                        logger.LogWarning(dropEx, "Could not drop __EFMigrationsHistory table. Continuing...");
-                    }
-                    
-                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-                    await context.Database.EnsureCreatedAsync(cts.Token);
-                    logger.LogInformation("Tables created successfully using EnsureCreated.");
-                    
-                    // Verify table was actually created
-                    try
-                    {
-                        using var verifyCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                        var verifyQuery = await context.Set<TaskModel>().Take(1).ToListAsync(verifyCts.Token);
-                        logger.LogInformation("Tasks table verified and accessible after creation.");
-                    }
-                    catch (Exception verifyEx)
-                    {
-                        logger.LogError(verifyEx, "Table creation reported success but table is still not accessible. Error: {Error}", verifyEx.Message);
-                        logger.LogError("You may need to run migrations manually: dotnet ef database update");
-                    }
-                }
-                catch (Exception ensureEx)
-                {
-                    logger.LogError(ensureEx, "Failed to create tables using EnsureCreated. Error: {Error}", ensureEx.Message);
-                    logger.LogError("Full error details: {FullError}", ensureEx.ToString());
-                    logger.LogError("Please run migrations manually: dotnet ef database update");
-                }
-            }
+            using var verifyCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var testQuery = await context.Set<TaskModel>().Take(1).ToListAsync(verifyCts.Token);
+            logger.LogInformation("Tasks table exists and is accessible after migration.");
         }
-        catch (Exception checkEx)
+        catch (Exception verifyEx)
         {
-            logger.LogWarning(checkEx, "Could not verify table existence. Will attempt to create if needed.");
+            logger.LogWarning(verifyEx, "Tasks table may not be accessible. Error: {Error}", verifyEx.Message);
+        }
+    }
+    catch (Exception migrateEx)
+    {
+        logger.LogError(migrateEx, "Failed to apply migrations. Error: {Error}", migrateEx.Message);
+        logger.LogError("Full error details: {FullError}", migrateEx.ToString());
+        
+        // Fallback: Try EnsureCreated if migrations fail
+        try
+        {
+            logger.LogInformation("Attempting fallback: EnsureCreated()...");
+            using var ensureCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            await context.Database.EnsureCreatedAsync(ensureCts.Token);
+            logger.LogInformation("Database created using EnsureCreated fallback.");
+        }
+        catch (Exception ensureEx)
+        {
+            logger.LogError(ensureEx, "Fallback EnsureCreated also failed. Database operations may fail.");
         }
     }
 }

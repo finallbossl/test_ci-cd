@@ -1,124 +1,233 @@
-# 🗄️ Chạy Migration Trên Render
+# 🔄 Chạy Migration Trên Render
 
-## 🐛 Vấn Đề
-
-Table "tasks" chưa được tạo trong PostgreSQL database trên Render.
+Hướng dẫn chạy Entity Framework migrations trên Render để tạo database tables.
 
 ---
 
-## ✅ Giải Pháp: Chạy Migration
+## 🎯 Vấn Đề
 
-### Cách 1: Qua Render Shell (Khuyến Nghị)
+Lỗi: `relation "tasks" does not exist`
 
-1. **Vào Render Dashboard:**
-   - https://dashboard.render.com
-   - Chọn **Backend Service** (backend-api)
+**Nguyên nhân:**
+- Table `tasks` chưa được tạo trong PostgreSQL database
+- `EnsureCreated()` không hoạt động đúng với migrations
 
-2. **Vào tab "Shell":**
-   - Click **"Shell"** tab ở trên cùng
-
-3. **Chạy migration:**
-   ```bash
-   cd /opt/render/project/src/Backend
-   dotnet ef database update
-   ```
-
-   **Nếu không tìm thấy `dotnet ef`:**
-   ```bash
-   # Install EF tools
-   dotnet tool install --global dotnet-ef
-   export PATH="$PATH:/root/.dotnet/tools"
-   
-   # Run migration
-   dotnet ef database update
-   ```
-
-4. **Verify table được tạo:**
-   ```bash
-   # Connect to database và check
-   psql $DATABASE_URL -c "\dt"
-   ```
+**Giải pháp:**
+- Sử dụng `Database.Migrate()` để tự động chạy migrations
+- Hoặc chạy migration thủ công qua Render Shell
 
 ---
 
-### Cách 2: Qua Database Shell
+## ✅ Giải Pháp 1: Tự Động (Đã Cập Nhật Code)
 
-1. **Vào Render Dashboard:**
-   - Chọn **Database Service** (my-database)
+Code đã được cập nhật để tự động chạy migrations khi start:
 
-2. **Vào tab "Connect":**
-   - Click **"Connect"** tab
-   - Chọn **"psql"**
+```csharp
+await context.Database.MigrateAsync();
+```
 
-3. **Chạy SQL để tạo table:**
-   ```sql
-   CREATE TABLE IF NOT EXISTS tasks (
-       "Id" VARCHAR(450) PRIMARY KEY,
-       "Title" VARCHAR(500) NOT NULL,
-       "Description" VARCHAR(2000) NOT NULL,
-       "Tag" VARCHAR(50) NOT NULL,
-       "Date" VARCHAR(10) NOT NULL,
-       "Time" VARCHAR(10) NOT NULL,
-       "Completed" BOOLEAN NOT NULL
-   );
-   
-   -- Verify
-   \dt
-   ```
+**Cách hoạt động:**
+1. Backend start → Tự động check pending migrations
+2. Nếu có migrations chưa chạy → Tự động apply
+3. Table `tasks` sẽ được tạo tự động
+
+**Sau khi deploy:**
+- Backend sẽ tự động chạy migrations
+- Check logs để xác nhận: `"Database migrations applied successfully"`
 
 ---
 
-### Cách 3: Tự Động Qua Code (Đã Cập Nhật)
+## 🔧 Giải Pháp 2: Chạy Thủ Công Qua Render Shell
 
-Code đã được update để tự động tạo tables nếu chưa có.
+Nếu tự động không work, chạy thủ công:
 
-**Sau khi deploy lại:**
-- Backend sẽ tự động detect table chưa có
-- Tự động tạo table "tasks"
-- Verify table sau khi tạo
+### Bước 1: Vào Render Shell
+
+1. Vào **Render Dashboard**
+2. Chọn **Backend Service** → **"Shell"** tab
+3. Click **"Open Shell"**
+
+### Bước 2: Chạy Migration
+
+```bash
+# Navigate to project directory
+cd /opt/render/project/src/Backend/Backend
+
+# Run migration
+dotnet ef database update
+```
+
+**Hoặc nếu path khác:**
+
+```bash
+# Find project directory
+find /opt/render/project -name "*.csproj" -type f
+
+# Navigate to Backend directory
+cd /opt/render/project/src/Backend/Backend
+
+# Run migration
+dotnet ef database update
+```
+
+### Bước 3: Verify
+
+```bash
+# Check if table exists (via psql if available)
+# Or check backend logs after restart
+```
 
 ---
 
-## 🔍 Verify Migration
+## 🔧 Giải Pháp 3: Chạy Migration Từ Local Machine
 
-### Check Logs:
+### Bước 1: Get Connection String
 
-Sau khi chạy migration, check logs sẽ thấy:
+1. Vào **Render Dashboard** → **Database** → **"Connections"** tab
+2. Copy **"External Database URL"** (cho phép kết nối từ bên ngoài)
+
+### Bước 2: Set Connection String Locally
+
+**Option A: Environment Variable**
+
+```bash
+# Windows PowerShell
+$env:ConnectionStrings__DefaultConnection="postgresql://user:pass@host:5432/dbname?sslmode=require"
+
+# Linux/Mac
+export ConnectionStrings__DefaultConnection="postgresql://user:pass@host:5432/dbname?sslmode=require"
 ```
-Tables created successfully using EnsureCreated.
-Tasks table verified and accessible after creation.
-```
 
-### Test API:
+**Option B: appsettings.json** (temporary)
 
-```
-https://test-ci-cd-fus0.onrender.com/api/tasks
-```
-
-**Kết quả mong đợi:**
 ```json
-[]
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "postgresql://user:pass@host:5432/dbname?sslmode=require"
+  }
+}
 ```
+
+### Bước 3: Run Migration
+
+```bash
+cd Backend/Backend
+dotnet ef database update
+```
+
+### Bước 4: Remove Connection String
+
+Sau khi chạy xong, xóa connection string khỏi `appsettings.json` (nếu đã thêm).
+
+---
+
+## 🔍 Kiểm Tra Migration Status
+
+### Check Logs trên Render
+
+Sau khi deploy, check **Backend Service** → **"Logs"** tab:
+
+**Thành công:**
+```
+✅ Applying database migrations...
+✅ Database migrations applied successfully.
+✅ Tasks table exists and is accessible after migration.
+```
+
+**Lỗi:**
+```
+❌ Failed to apply migrations. Error: ...
+```
+
+### Test API
+
+```bash
+# Test GET /api/tasks
+curl https://test-ci-cd-fus0.onrender.com/api/tasks
+
+# Should return: [] (empty array, not error)
+```
+
+---
+
+## 🐛 Troubleshooting
+
+### Lỗi: "No migrations found"
+
+**Nguyên nhân:** Migration files không có trong Docker image
+
+**Giải pháp:**
+1. Đảm bảo `Migrations/` folder được copy vào Docker
+2. Check `Dockerfile` có copy migrations:
+
+```dockerfile
+COPY Backend.csproj ./
+COPY . ./
+# This should include Migrations/ folder
+```
+
+### Lỗi: "Migration already applied"
+
+**Nguyên nhân:** Migration đã chạy nhưng table vẫn không có
+
+**Giải pháp:**
+1. Drop và recreate database (nếu có thể)
+2. Hoặc drop table và chạy lại migration:
+
+```sql
+-- Via Render Shell hoặc psql
+DROP TABLE IF EXISTS "tasks" CASCADE;
+DROP TABLE IF EXISTS "__EFMigrationsHistory" CASCADE;
+```
+
+Sau đó restart backend để migration chạy lại.
+
+### Lỗi: "Table name case mismatch"
+
+**Nguyên nhân:** PostgreSQL case-sensitive, migration tạo "Tasks" nhưng code tìm "tasks"
+
+**Giải pháp:** ✅ Đã fix - Migration đã được update để tạo table `tasks` (lowercase)
 
 ---
 
 ## 📋 Checklist
 
-- [ ] Vào Render Shell hoặc Database Shell
-- [ ] Chạy migration hoặc SQL
-- [ ] Verify table được tạo
-- [ ] Test API endpoint
-- [ ] Check logs để confirm
+- [ ] Code đã được update để dùng `Database.Migrate()`
+- [ ] Migration file đã được update (table name = "tasks")
+- [ ] Backend đã deploy lên Render
+- [ ] Check logs thấy "Database migrations applied successfully"
+- [ ] Test API: `GET /api/tasks` trả về `[]` (không lỗi)
 
 ---
 
-## 💡 Tips
+## 🚀 Quick Fix (Nếu Cần Ngay)
 
-1. **Render Shell:** Có thể chạy commands như local
-2. **Database Shell:** Có thể chạy SQL trực tiếp
-3. **Auto-create:** Code sẽ tự động tạo nếu chưa có (sau khi deploy lại)
+Nếu cần fix ngay, chạy SQL trực tiếp:
+
+```sql
+-- Via Render Database → "Connect" → psql
+CREATE TABLE IF NOT EXISTS tasks (
+    "Id" text PRIMARY KEY,
+    "Title" character varying(500) NOT NULL,
+    "Description" character varying(2000),
+    "Tag" character varying(50) NOT NULL,
+    "Date" character varying(10) NOT NULL,
+    "Time" character varying(10) NOT NULL,
+    "Completed" boolean NOT NULL
+);
+```
+
+Sau đó restart backend.
 
 ---
 
-**Sau khi chạy migration, table sẽ được tạo và API sẽ hoạt động!** 🚀
+## ✅ Kết Luận
 
+**Cách tốt nhất:**
+1. ✅ Code đã tự động chạy migrations khi start
+2. ✅ Deploy lại backend
+3. ✅ Check logs để verify
+
+**Nếu không work:**
+- Chạy migration thủ công qua Render Shell
+- Hoặc chạy từ local machine với connection string từ Render

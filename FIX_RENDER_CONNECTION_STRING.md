@@ -124,3 +124,5 @@ Host=host;Port=5432;Database=dbname;Username=user;Password=pass;SSL Mode=Require
 
 **Set connection string thủ công trong Render dashboard sẽ fix lỗi này!** 🚀
 
+
+

@@ -140,9 +140,9 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 // Ensure database is created (non-blocking, run in background)
-_ = Task.Run(async () =>
+_ = System.Threading.Tasks.Task.Run(async () =>
 {
-    await Task.Delay(2000); // Wait for app to start
+    await System.Threading.Tasks.Task.Delay(2000); // Wait for app to start
     
 try
 {

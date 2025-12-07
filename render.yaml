@@ -3,8 +3,8 @@ services:
   - type: web
     name: backend-api
     env: docker
-    dockerfilePath: ./Backend/Dockerfile
-    dockerContext: ./Backend
+    dockerfilePath: ./Backend/Backend/Dockerfile
+    dockerContext: ./Backend/Backend
     plan: free  # Free tier (sẽ sleep sau 15 phút không dùng)
     # plan: starter  # $7/tháng (không sleep)
     envVars:

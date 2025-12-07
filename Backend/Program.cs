@@ -198,7 +198,7 @@ try
         // Check if tables exist, if not create them
         try
         {
-            // Try to query Tasks table to see if it exists
+            // Try to query tasks table to see if it exists
             try
             {
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -213,10 +213,23 @@ try
                     using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
                     await context.Database.EnsureCreatedAsync(cts.Token);
                     logger.LogInformation("Tables created successfully.");
+                    
+                    // Verify table was actually created
+                    try
+                    {
+                        using var verifyCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                        var verifyQuery = await context.Set<TaskModel>().Take(1).ToListAsync(verifyCts.Token);
+                        logger.LogInformation("Tasks table verified and accessible after creation.");
+                    }
+                    catch (Exception verifyEx)
+                    {
+                        logger.LogError(verifyEx, "Table creation reported success but table is still not accessible. Error: {Error}", verifyEx.Message);
+                    }
                 }
                 catch (Exception ensureEx)
                 {
                     logger.LogError(ensureEx, "Failed to create tables. Error: {Error}", ensureEx.Message);
+                    logger.LogError("Full error details: {FullError}", ensureEx.ToString());
                 }
             }
         }

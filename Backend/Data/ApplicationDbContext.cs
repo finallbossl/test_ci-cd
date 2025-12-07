@@ -19,7 +19,7 @@ public class ApplicationDbContext : DbContext
 
         modelBuilder.Entity<TaskModel>(entity =>
         {
-            entity.ToTable("Tasks"); // Explicit table name for PostgreSQL compatibility
+            entity.ToTable("tasks"); // Use lowercase for PostgreSQL compatibility (case-sensitive)
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).IsRequired();
             entity.Property(e => e.Title).IsRequired().HasMaxLength(500);

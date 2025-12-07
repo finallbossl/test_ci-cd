@@ -1,0 +1,47 @@
+services:
+  # Backend API Service
+  - type: web
+    name: backend-api
+    env: docker
+    dockerfilePath: ./Backend/Dockerfile
+    dockerContext: ./Backend
+    plan: free  # Free tier (sẽ sleep sau 15 phút không dùng)
+    # plan: starter  # $7/tháng (không sleep)
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_URLS
+        value: http://0.0.0.0:8080
+      # Connection string sẽ được set tự động từ database service
+      - key: ConnectionStrings__DefaultConnection
+        fromDatabase:
+          name: my-database
+          property: connectionString
+      # Frontend URLs cho CORS (sẽ được update sau khi frontend deploy)
+      - key: FRONTEND_URLS
+        sync: false  # Set manually after frontend deploys
+    healthCheckPath: /health
+
+  # Frontend Static Site
+  - type: web
+    name: frontend
+    env: static
+    buildCommand: cd Frontend && npm install && npm run build
+    staticPublishPath: ./Frontend/dist
+    envVars:
+      # Backend API URL (sẽ được set sau khi backend deploy)
+      - key: VITE_API_BASE_URL
+        sync: false  # Set manually after backend deploys
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  # PostgreSQL Database
+  - type: pspg
+    name: my-database
+    plan: free  # Free 90 ngày, sau đó $7/tháng
+    # plan: starter  # $7/tháng ngay từ đầu
+    databaseName: DataTest
+    postgresMajorVersion: 15
+

@@ -18,9 +18,30 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // Configure Entity Framework
+// Support both SQL Server and PostgreSQL (for Render.com)
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(connectionString));
+{
+    if (string.IsNullOrEmpty(connectionString))
+    {
+        throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+    }
+    
+    // Detect database type from connection string
+    if (connectionString.ToLower().Contains("postgresql") || 
+        connectionString.ToLower().Contains("postgres") ||
+        connectionString.StartsWith("postgresql://") ||
+        connectionString.Contains("Host="))
+    {
+        // PostgreSQL connection
+        options.UseNpgsql(connectionString);
+    }
+    else
+    {
+        // SQL Server connection (default)
+        options.UseSqlServer(connectionString);
+    }
+});
 
 // Register TaskService
 builder.Services.AddScoped<ITaskService, TaskService>();
@@ -30,19 +51,29 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins(
-                "http://localhost:5173", 
-                "http://localhost:3000", 
-                "http://localhost:5174", 
-                "http://localhost:8080",
-                "http://172.24.180.191:8080", // Production frontend
-                "http://172.24.180.191:3000", // Production frontend (nếu dùng port khác)
-                "http://172.24.180.191:5173",  // Production frontend (nếu dùng port khác)
-                "http://192.168.102.8:8080",   // Windows host IP
-                "http://192.168.102.8:3000",   // Windows host IP (nếu dùng port khác)
-                "http://192.168.102.8:5173",   // Windows host IP (nếu dùng port khác)
-                "http://172.24.176.1:8080"    // Network IP
-              )
+        var origins = new List<string>
+        {
+            "http://localhost:5173", 
+            "http://localhost:3000", 
+            "http://localhost:5174", 
+            "http://localhost:8080",
+            "http://172.24.180.191:8080", // Production frontend
+            "http://172.24.180.191:3000", // Production frontend (nếu dùng port khác)
+            "http://172.24.180.191:5173",  // Production frontend (nếu dùng port khác)
+            "http://192.168.102.8:8080",   // Windows host IP
+            "http://192.168.102.8:3000",   // Windows host IP (nếu dùng port khác)
+            "http://192.168.102.8:5173",   // Windows host IP (nếu dùng port khác)
+            "http://172.24.176.1:8080"     // Network IP
+        };
+        
+        // Add Render.com frontend URLs from environment variable (comma-separated)
+        var frontendUrls = Environment.GetEnvironmentVariable("FRONTEND_URLS");
+        if (!string.IsNullOrEmpty(frontendUrls))
+        {
+            origins.AddRange(frontendUrls.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        }
+        
+        policy.WithOrigins(origins.ToArray())
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -56,13 +87,13 @@ _ = Task.Run(async () =>
 {
     await Task.Delay(2000); // Wait for app to start
     
-    try
-    {
-        using var scope = app.Services.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        
-        logger.LogInformation("Checking database connection...");
+try
+{
+    using var scope = app.Services.CreateScope();
+    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    
+    logger.LogInformation("Checking database connection...");
         var connString = builder.Configuration.GetConnectionString("DefaultConnection");
         var maskedConnectionString = connString != null 
             ? Regex.Replace(connString, @"Password=[^;]+;", "Password=***;", RegexOptions.IgnoreCase)
@@ -81,32 +112,32 @@ _ = Task.Run(async () =>
             logger.LogWarning(connectEx, "Cannot connect to database. Will attempt to create it.");
         }
         
-        if (!canConnect)
-        {
-            logger.LogInformation("Database does not exist. Creating database...");
+    if (!canConnect)
+    {
+        logger.LogInformation("Database does not exist. Creating database...");
             try
             {
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
                 await context.Database.EnsureCreatedAsync(cts.Token);
-                logger.LogInformation("Database created successfully.");
+        logger.LogInformation("Database created successfully.");
             }
             catch (Exception createEx)
             {
                 logger.LogError(createEx, "Failed to create database. Application will continue but database operations may fail.");
                 logger.LogError("Full error: {Error}", createEx.ToString());
             }
-        }
-        else
-        {
-            logger.LogInformation("Database connection successful.");
-        }
     }
-    catch (Exception ex)
+    else
     {
-        var logger = app.Services.GetRequiredService<ILogger<Program>>();
+        logger.LogInformation("Database connection successful.");
+    }
+}
+catch (Exception ex)
+{
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
         logger.LogError(ex, "An error occurred while connecting to the database. Application will continue but database operations may fail.");
         logger.LogError("Full error: {Error}", ex.ToString());
-    }
+}
 });
 
 // Configure the HTTP request pipeline.

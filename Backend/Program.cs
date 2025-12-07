@@ -171,7 +171,7 @@ try
         
     if (!canConnect)
     {
-        logger.LogInformation("Database does not exist. Creating database...");
+        logger.LogInformation("Database does not exist. Creating database and tables...");
             try
             {
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
@@ -207,12 +207,23 @@ try
             }
             catch (Exception tableEx)
             {
-                logger.LogWarning(tableEx, "Tasks table may not exist. Attempting to create tables...");
+                logger.LogWarning(tableEx, "Tasks table does not exist. Attempting to create tables using EnsureCreated...");
                 try
                 {
+                    // Drop existing __EFMigrationsHistory table if exists (to allow EnsureCreated to work)
+                    try
+                    {
+                        await context.Database.ExecuteSqlRawAsync("DROP TABLE IF EXISTS \"__EFMigrationsHistory\" CASCADE;");
+                        logger.LogInformation("Dropped __EFMigrationsHistory table to allow EnsureCreated.");
+                    }
+                    catch (Exception dropEx)
+                    {
+                        logger.LogWarning(dropEx, "Could not drop __EFMigrationsHistory table. Continuing...");
+                    }
+                    
                     using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
                     await context.Database.EnsureCreatedAsync(cts.Token);
-                    logger.LogInformation("Tables created successfully.");
+                    logger.LogInformation("Tables created successfully using EnsureCreated.");
                     
                     // Verify table was actually created
                     try
@@ -224,12 +235,14 @@ try
                     catch (Exception verifyEx)
                     {
                         logger.LogError(verifyEx, "Table creation reported success but table is still not accessible. Error: {Error}", verifyEx.Message);
+                        logger.LogError("You may need to run migrations manually: dotnet ef database update");
                     }
                 }
                 catch (Exception ensureEx)
                 {
-                    logger.LogError(ensureEx, "Failed to create tables. Error: {Error}", ensureEx.Message);
+                    logger.LogError(ensureEx, "Failed to create tables using EnsureCreated. Error: {Error}", ensureEx.Message);
                     logger.LogError("Full error details: {FullError}", ensureEx.ToString());
+                    logger.LogError("Please run migrations manually: dotnet ef database update");
                 }
             }
         }

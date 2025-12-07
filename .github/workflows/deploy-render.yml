@@ -26,15 +26,15 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Restore dependencies
-        working-directory: ./Backend/Backend
+        working-directory: ./Backend
         run: dotnet restore
 
       - name: Build
-        working-directory: ./Backend/Backend
+        working-directory: ./Backend
         run: dotnet build --configuration Release --no-restore
 
       - name: Test
-        working-directory: ./Backend/Backend
+        working-directory: ./Backend
         run: dotnet test --configuration Release --no-build --verbosity normal || true
 
   build-and-push-docker:
@@ -69,11 +69,64 @@ jobs:
             type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
 
+      - name: Debug directory structure
+        run: |
+          echo "=== Current directory ==="
+          pwd
+          echo ""
+          echo "=== Root directory contents ==="
+          ls -la || echo "ls failed, trying dir"
+          dir || echo "dir also failed"
+          echo ""
+          echo "=== Check Backend directory ==="
+          if [ -d "Backend" ]; then
+            echo "Backend/ exists"
+            ls -la Backend/ || echo "Cannot list Backend/"
+            if [ -d "Backend/Backend" ]; then
+              echo "Backend/Backend/ exists"
+              ls -la Backend/Backend/ || echo "Cannot list Backend/Backend/"
+            else
+              echo "Backend/Backend/ does NOT exist"
+            fi
+          else
+            echo "Backend/ does NOT exist"
+          fi
+      
+      - name: Check repository structure
+        run: |
+          echo "=== Repository root structure ==="
+          pwd
+          ls -la
+          echo ""
+          echo "=== Looking for Dockerfile ==="
+          find . -name "Dockerfile" -type f 2>/dev/null || echo "No Dockerfile found"
+          echo ""
+          echo "=== Looking for Backend.csproj ==="
+          find . -name "Backend.csproj" -type f 2>/dev/null || echo "No Backend.csproj found"
+          echo ""
+          echo "=== Check if Backend/Backend exists ==="
+          if [ -d "Backend/Backend" ]; then
+            echo "✅ Backend/Backend/ exists - using nested path"
+            CONTEXT_PATH="./Backend/Backend"
+            DOCKERFILE_PATH="./Backend/Backend/Dockerfile"
+          elif [ -d "Backend" ] && [ -f "Backend/Dockerfile" ]; then
+            echo "✅ Backend/ exists with Dockerfile - using Backend path"
+            CONTEXT_PATH="./Backend"
+            DOCKERFILE_PATH="./Backend/Dockerfile"
+          else
+            echo "❌ Cannot find Backend directory structure"
+            exit 1
+          fi
+          echo "Context: $CONTEXT_PATH"
+          echo "Dockerfile: $DOCKERFILE_PATH"
+          echo "CONTEXT_PATH=$CONTEXT_PATH" >> $GITHUB_ENV
+          echo "DOCKERFILE_PATH=$DOCKERFILE_PATH" >> $GITHUB_ENV
+      
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ./Backend/Backend
-          file: ./Backend/Backend/Dockerfile
+          context: ${{ env.CONTEXT_PATH }}
+          file: ${{ env.DOCKERFILE_PATH }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

@@ -72,11 +72,50 @@ jobs:
             type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
 
+      - name: Debug directory structure
+        run: |
+          echo "=== Current directory ==="
+          pwd
+          echo ""
+          echo "=== Root directory contents ==="
+          ls -la
+          echo ""
+          echo "=== Check Backend directory ==="
+          if [ -d "Backend" ]; then
+            echo "Backend/ exists"
+            ls -la Backend/
+            if [ -d "Backend/Backend" ]; then
+              echo "Backend/Backend/ exists"
+              ls -la Backend/Backend/
+            else
+              echo "Backend/Backend/ does NOT exist"
+            fi
+          else
+            echo "Backend/ does NOT exist"
+          fi
+      
+      - name: Determine Docker paths
+        id: docker-paths
+        run: |
+          if [ -d "Backend/Backend" ]; then
+            echo "✅ Using nested path: Backend/Backend"
+            echo "context=./Backend/Backend" >> $GITHUB_OUTPUT
+            echo "file=./Backend/Backend/Dockerfile" >> $GITHUB_OUTPUT
+          elif [ -d "Backend" ] && [ -f "Backend/Dockerfile" ]; then
+            echo "✅ Using Backend path"
+            echo "context=./Backend" >> $GITHUB_OUTPUT
+            echo "file=./Backend/Dockerfile" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Cannot find Backend directory"
+            ls -la
+            exit 1
+          fi
+      
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ./Backend/Backend
-          file: ./Backend/Backend/Dockerfile
+          context: ${{ steps.docker-paths.outputs.context }}
+          file: ${{ steps.docker-paths.outputs.file }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

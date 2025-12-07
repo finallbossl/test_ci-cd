@@ -117,7 +117,8 @@ builder.Services.AddCors(options =>
             "http://192.168.102.8:8080",   // Windows host IP
             "http://192.168.102.8:3000",   // Windows host IP (nếu dùng port khác)
             "http://192.168.102.8:5173",   // Windows host IP (nếu dùng port khác)
-            "http://172.24.176.1:8080"     // Network IP
+            "http://172.24.176.1:8080",    // Network IP
+            "https://test-ci-cd-fus0.onrender.com" // Render frontend (nếu có)
         };
         
         // Add Render.com frontend URLs from environment variable (comma-separated)

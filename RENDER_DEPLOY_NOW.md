@@ -131,20 +131,40 @@ FRONTEND_URLS=
 
 ---
 
-## 🗄️ Database Migration
+## 🗄️ Database - Tự Động Tạo
 
-Backend sẽ tự động tạo database và tables lần đầu chạy (vì code có `EnsureCreated()`).
+### ✅ Database Sẽ Tự Động Được Tạo!
 
-✅ **Không cần chạy migration thủ công!**
+**Render Database:**
+- ✅ Database service đã được tạo sẵn trên Render
+- ✅ Database name: `db_test_ip24` (từ connection string của bạn)
 
-Nếu muốn chạy migration thủ công:
+**Backend Code:**
+- ✅ Tự động tạo tables khi start lần đầu
+- ✅ Sử dụng `EnsureCreated()` - không cần migration
+- ✅ Chạy trong background, không block startup
 
-1. Vào **Backend Service** → **"Shell"** tab
-2. Run:
-   ```bash
-   cd /opt/render/project/src
-   dotnet ef database update
-   ```
+**Bạn KHÔNG cần:**
+- ❌ Tạo database thủ công
+- ❌ Chạy migration
+- ❌ Tạo tables thủ công
+
+**Chỉ cần:**
+- ✅ Set connection string trong Backend Service
+- ✅ Deploy và chờ!
+
+### 📋 Kiểm Tra Logs
+
+Sau khi deploy, check logs sẽ thấy:
+```
+✅ Database does not exist. Creating database...
+✅ Database created successfully.
+```
+
+Hoặc nếu đã có:
+```
+✅ Database connection successful.
+```
 
 ---
 

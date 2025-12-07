@@ -3,11 +3,8 @@ services:
   - type: web
     name: backend-api
     env: docker
-    # Repo structure: Backend/ (repo root)
-    # Code nằm trong Backend/Backend/
-    # Dockerfile và Backend.csproj ở: Backend/Backend/
-    dockerfilePath: Backend/Dockerfile
-    dockerContext: Backend
+    dockerfilePath: ./Backend/Dockerfile
+    dockerContext: ./Backend
     plan: free  # Free tier (sẽ sleep sau 15 phút không dùng)
     # plan: starter  # $7/tháng (không sleep)
     envVars:

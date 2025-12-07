@@ -20,6 +20,60 @@ builder.Services.AddSwaggerGen();
 // Configure Entity Framework
 // Support both SQL Server and PostgreSQL (for Render.com)
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+// Normalize PostgreSQL connection string from URI format if needed
+if (!string.IsNullOrEmpty(connectionString) && connectionString.StartsWith("postgresql://"))
+{
+    // Convert PostgreSQL URI to Npgsql connection string format
+    try
+    {
+        var uri = new Uri(connectionString);
+        var connBuilder = new System.Text.StringBuilder();
+        connBuilder.Append($"Host={uri.Host}");
+        if (uri.Port > 0 && uri.Port != 5432) connBuilder.Append($";Port={uri.Port}");
+        
+        var dbName = uri.AbsolutePath.TrimStart('/');
+        if (!string.IsNullOrEmpty(dbName)) connBuilder.Append($";Database={dbName}");
+        
+        if (!string.IsNullOrEmpty(uri.UserInfo))
+        {
+            var userInfo = uri.UserInfo.Split(':');
+            if (userInfo.Length > 0) connBuilder.Append($";Username={Uri.UnescapeDataString(userInfo[0])}");
+            if (userInfo.Length > 1) connBuilder.Append($";Password={Uri.UnescapeDataString(userInfo[1])}");
+        }
+        
+        // Parse query string manually (System.Web not available in .NET Core)
+        if (!string.IsNullOrEmpty(uri.Query))
+        {
+            var query = uri.Query.TrimStart('?');
+            var pairs = query.Split('&');
+            foreach (var pair in pairs)
+            {
+                var keyValue = pair.Split('=');
+                if (keyValue.Length == 2)
+                {
+                    var key = Uri.UnescapeDataString(keyValue[0]);
+                    var value = Uri.UnescapeDataString(keyValue[1]);
+                    connBuilder.Append($";{key}={value}");
+                }
+            }
+        }
+        
+        // Add SSL mode if not present
+        if (!connBuilder.ToString().Contains("SSL Mode", StringComparison.OrdinalIgnoreCase))
+        {
+            connBuilder.Append(";SSL Mode=Require");
+        }
+        
+        connectionString = connBuilder.ToString();
+    }
+    catch
+    {
+        // If URI parsing fails, use original connection string
+        // Npgsql may be able to parse it directly
+    }
+}
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     if (string.IsNullOrEmpty(connectionString))
@@ -31,7 +85,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     if (connectionString.ToLower().Contains("postgresql") || 
         connectionString.ToLower().Contains("postgres") ||
         connectionString.StartsWith("postgresql://") ||
-        connectionString.Contains("Host="))
+        connectionString.Contains("Host=", StringComparison.OrdinalIgnoreCase))
     {
         // PostgreSQL connection
         options.UseNpgsql(connectionString);

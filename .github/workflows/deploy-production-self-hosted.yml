@@ -1,11 +1,12 @@
 name: Deploy to Production (Self-Hosted)
 
 on:
-  push:
-    branches:
-      - main
-      - master
-  workflow_dispatch:
+  # Disabled: Only deploy to Render, not self-hosted server
+  # push:
+  #   branches:
+  #     - main
+  #     - master
+  workflow_dispatch:  # Only run when manually triggered
 
 env:
   REGISTRY: ghcr.io
